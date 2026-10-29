@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StickSmart — Hockey Training, Made Clear</title>
+    <meta
+      name="description"
+      content="StickSmart — guided hockey workouts for puck control, hand speed, and head-up awareness. Browse and train without an account."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#view">Skip to main content</a>
+
+    <div class="app">
+      <!-- Sidebar (desktop) / drawer (mobile) -->
+      <aside class="side" id="side" aria-label="Primary navigation">
+        <a class="brand" href="#/home">
+          <span class="brand__mark" aria-hidden="true">⌁</span>
+          <span>StickSmart</span>
+        </a>
+
+        <button class="drawer-close" type="button" id="drawer-close" aria-label="Close menu">×</button>
+
+        <nav aria-label="Primary">
+          <a class="nav" href="#/home" data-route="home">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 3 3 10v11h6v-6h6v6h6V10z"/></svg>
+            <span>Home</span>
+          </a>
+          <a class="nav" href="#/training" data-route="training">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M20.6 6.6 17.4 3.4a2 2 0 0 0-2.8 0l-1 1 6 6 1-1a2 2 0 0 0 0-2.8ZM3 17.2V21h3.8L17 10.8 13.2 7z"/></svg>
+            <span>Training</span>
+          </a>
+          <a class="nav" href="#/progress" data-route="progress">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4 20V4h2v14h14v2zm4-3V9h3v8zm5 0V5h3v12zm5 0v-5h3v5z"/></svg>
+            <span>Progress</span>
+          </a>
+          <a class="nav" href="#/profile" data-route="profile">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4 0-8 2-8 5v1h16v-1c0-3-4-5-8-5Z"/></svg>
+            <span>Profile</span>
+          </a>
+        </nav>
+
+        <p class="side__label">Settings live inside Profile</p>
+        <div class="side__spacer"></div>
+        <p class="side__foot">Browsing as Guest · no account needed</p>
+      </aside>
+
+      <div class="main-wrap">
+        <!-- Mobile top bar -->
+        <div class="topbar">
+          <button
+            class="menu-toggle"
+            type="button"
+            id="menu-btn"
+            aria-label="Open menu"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+            aria-controls="side"
+          >
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path fill="currentColor" d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+          </button>
+          <a class="brand" href="#/home">
+            <span class="brand__mark" aria-hidden="true">⌁</span>
+            <span>StickSmart</span>
+          </a>
+        </div>
+
+        <main id="view" tabindex="-1" aria-live="polite">
+          <!-- Views rendered by js/app.js -->
+        </main>
+      </div>
+    </div>
+
+    <!-- Mobile bottom dock -->
+    <nav class="bottom-nav" aria-label="Primary mobile">
+      <a class="docklink" href="#/home" data-route="home">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 3 3 10v11h6v-6h6v6h6V10z"/></svg>
+        <span>Home</span>
+      </a>
+      <a class="docklink" href="#/training" data-route="training">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path fill="currentColor" d="M20.6 6.6 17.4 3.4a2 2 0 0 0-2.8 0l-1 1 6 6 1-1a2 2 0 0 0 0-2.8ZM3 17.2V21h3.8L17 10.8 13.2 7z"/></svg>
+        <span>Training</span>
+      </a>
+      <a class="docklink" href="#/progress" data-route="progress">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4 20V4h2v14h14v2zm4-3V9h3v8zm5 0V5h3v12zm5 0v-5h3v5z"/></svg>
+        <span>Progress</span>
+      </a>
+      <a class="docklink" href="#/profile" data-route="profile">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4 0-8 2-8 5v1h16v-1c0-3-4-5-8-5Z"/></svg>
+        <span>Profile</span>
+      </a>
+    </nav>
+
+    <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
