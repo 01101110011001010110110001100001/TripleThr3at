@@ -1,8 +1,9 @@
-# StickSmart — Frontend (App Shell, Navigation & Workout Builder)
+# StickSmart — Frontend (App Shell, Navigation, Builder & Session)
 
 Plain **HTML5 + CSS + vanilla JS** (no framework, no build step). The app shell
 and persistent navigation are the TRI-6 deliverable; the drill library, workout
-builder, drill details, and workout review are **TRI-11**. It currently calls no
+builder, drill details, and workout review are **TRI-11**; the guided
+pause-aware workout/rest session runtime is **TRI-12**. It currently calls no
 backend; it will call Ethan's Python/MySQL API over `fetch` in a later ticket.
 
 > **Naming:** the product UI is branded **StickSmart** (that's the name used in
@@ -30,9 +31,33 @@ frontend/
   js/app.js       Hash router (+ params), active-nav state, drawer handling, delegated builder actions, drag-reorder
   js/views.js     View render functions (Home, Training/Builder, Drill detail, Review, Progress, Profile, Setup)
   js/workout.js   Workout state: selected drills, add/remove/reorder/undo, preset vs custom, localStorage persistence
+  js/session.js   Guided-session state machine: pause-aware timers, phase transitions, finish-early, summary
+  js/sessionviews.js  Runtime phase views (ready / countdown / active / rest / summary)
   js/drills.js    The 4 drills + workout math (copy/data from Figma + TT3database/drill_catalog.sql)
   js/diagram.js   Inline-SVG rink movement diagrams, one motion path per drill
 ```
+
+## Guided session (TRI-12)
+
+*Choose Training Mode* on the review page begins a **timer-only** guided session
+against the chosen order. Each drill runs a phase cycle:
+
+**Ready → Countdown (3s) → Active → Rest → … → Summary**
+
+- **Pause-aware timers.** Active, rest, and countdown timers only advance while
+  the session is running; **paused time and time spent in the finish-early
+  dialog are excluded** from the elapsed active/rest totals.
+- **Controls.** Large, glove-friendly touch targets: Pause/Resume, Complete
+  Drill, Skip Rest, and End Workout (with a confirmation dialog).
+- **No duplicate completion.** The timer reaching zero and the Complete button
+  share one guarded path, so a drill is only completed once.
+- **Rest transitions follow the chosen order**; the summary distinguishes a full
+  completion from an early finish (with a partially-completed drill marked).
+- **Demo speed** (on by default) runs timers ~15× so the flow is quick to review;
+  turn it off on the Ready screen for real-time timers.
+
+Camera / simulated-tracking mode and the AI advisor are a later ticket (TRI-15);
+the session is labeled timer-only throughout.
 
 ## Workout builder (TRI-11)
 
@@ -67,8 +92,8 @@ live inside Profile** (per the final Figma / TRI-5 PDF §5).
   closes after a destination is selected, on Esc, and on backdrop tap.
 
 Routes are hash-based: `#/home`, `#/training`, `#/drill/<slug>`, `#/review`,
-`#/progress`, `#/profile`, `#/setup` (and `#/profile#settings` to jump to the
-Settings section).
+`#/session`, `#/progress`, `#/profile`, `#/setup` (and `#/profile#settings` to
+jump to the Settings section).
 
 ## Accessibility & status
 
@@ -94,11 +119,11 @@ primary blue `#1676b9`, orange accent `#ff9e1b`, 16px radius, **Work Sans**
 
 ## Scope
 
-Shell, navigation, drill library, workout builder, drill details, and
-review/reorder. The guided **session runtime** (training-mode selection, timers,
-camera/timer-only, finish summary, AI advisor), the full setup wizard, and real
-auth/persistence are placeholders here and ship in later tickets — *Choose
-Training Mode* hands the chosen order off to that runtime.
+Shell, navigation, drill library, workout builder, drill details, review/reorder,
+and the **timer-only guided session** (active/rest timers, pause/resume,
+finish-early, completion summary). **Camera / simulated-tracking mode** and the
+AI advisor (TRI-15), the full setup wizard, and real auth/persistence are
+placeholders here and ship in later tickets.
 
 ## Note for reviewers
 
