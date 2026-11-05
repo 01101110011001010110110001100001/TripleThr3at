@@ -1,40 +1,63 @@
-// App shell controller (TRI-6): hash router, active-nav state, and the
-// mobile drawer (the navy sidebar slides in on phones) with keyboard/focus
-// handling.
+// App shell controller.
+// -------------------------------------------------------------------------
+// TRI-6: hash router, active-nav state, and the mobile drawer.
+// TRI-11: route params for drill detail (#/drill/<slug>) and the workout
+// review (#/review), plus delegated interactivity for the workout builder
+// (add / remove / reorder / review) driven by data-action attributes.
 
 import { renderView } from "./views.js";
+import {
+  subscribe,
+  addToCustom,
+  removeFromCustom,
+  removeFromActive,
+  undoRemoval,
+  clearRemoved,
+  moveInActive,
+  reorderActive,
+  reviewSource,
+} from "./workout.js";
 
-// Centralised app state. Guest by default — later tickets flip `user` to a
-// real account once auth/persistence lands.
-const state = {
-  user: null, // null = Guest
-};
+const ROUTES = ["home", "training", "progress", "profile", "setup", "drill", "review"];
+// Flow routes that should keep the Training nav item highlighted.
+const TRAINING_FLOW = ["training", "drill", "review", "setup"];
 
-const ROUTES = ["home", "training", "progress", "profile", "setup"];
 const viewEl = document.getElementById("view");
 
 let firstRender = true;
+let pendingFocus = null; // CSS selector to focus after an in-place re-render
 
 // --- Routing -------------------------------------------------------------
 
-// Parse location.hash into { route, anchor }. Supports "#/profile#settings"
-// (the browser keeps everything after the first "#" as the fragment, so we
-// split again on "#").
+// Parse location.hash into { route, param, anchor }.
+// "#/drill/figure-eight-control" → { route: "drill", param: "figure-eight-control" }
+// "#/profile#settings"           → { route: "profile", anchor: "settings" }
 function parseHash() {
   const raw = location.hash.replace(/^#/, "");
   const [path, anchor] = raw.split("#");
-  const route = path.replace(/^\//, "") || "home";
-  return { route, anchor };
+  const segs = path.replace(/^\//, "").split("/");
+  const route = segs[0] || "home";
+  const param = segs[1] || "";
+  return { route, param, anchor };
 }
 
 function setActiveNav(route) {
+  const navRoute = TRAINING_FLOW.includes(route) ? "training" : route;
   document.querySelectorAll(".nav, .docklink").forEach((el) => {
-    if (el.dataset.route === route) {
+    if (el.dataset.route === navRoute) {
       el.setAttribute("aria-current", "page");
     } else {
       el.removeAttribute("aria-current");
     }
   });
+}
+
+function render(route, param) {
+  const known = ROUTES.includes(route);
+  const { html, title } = renderView(known ? route : "notfound", param);
+  viewEl.innerHTML = html;
+  document.title = `${title} — StickSmart`;
+  setActiveNav(known ? route : "");
 }
 
 function router() {
@@ -44,27 +67,201 @@ function router() {
     return;
   }
 
-  const { route, anchor } = parseHash();
-  const known = ROUTES.includes(route);
-  const { html, title } = renderView(known ? route : "notfound");
-
-  viewEl.innerHTML = html;
-  document.title = `${title} — StickSmart`;
-  setActiveNav(known ? route : "");
+  const { route, param, anchor } = parseHash();
+  render(route, param);
   closeDrawer({ restoreFocus: false });
 
-  // Scroll to an in-view anchor (e.g. Settings within Profile) if requested.
   if (anchor && document.getElementById(anchor)) {
     document.getElementById(anchor).scrollIntoView({ behavior: "auto", block: "start" });
   } else {
     window.scrollTo(0, 0);
   }
 
-  // Move focus to main on user navigation so keyboard/SR users land on the
-  // new view. Skip on the very first load to leave focus at the top.
+  // Move focus to main on navigation so keyboard/SR users land on the new
+  // view. Skip on the very first load to leave focus at the top.
   if (!firstRender) viewEl.focus();
   firstRender = false;
 }
+
+// Re-render the current route in place (after a state change) without the
+// navigation side effects — preserve scroll position and optionally restore
+// focus to a control so keyboard users are not dropped.
+function rerenderInPlace() {
+  const { route, param } = parseHash();
+  const y = window.scrollY;
+  render(route, param);
+  window.scrollTo(0, y);
+  if (pendingFocus) {
+    const el = viewEl.querySelector(pendingFocus);
+    if (el) el.focus();
+    pendingFocus = null;
+  }
+}
+
+// Re-render whenever the workout state changes.
+subscribe(rerenderInPlace);
+
+// --- Dropdown (Add a drill search) ---------------------------------------
+
+function openDropdown() {
+  const menu = viewEl.querySelector(".dropdown-menu");
+  const input = viewEl.querySelector("[data-dropdown-input]");
+  if (!menu) return;
+  menu.hidden = false;
+  if (input) input.setAttribute("aria-expanded", "true");
+}
+
+function closeDropdown() {
+  const menu = viewEl.querySelector(".dropdown-menu");
+  const input = viewEl.querySelector("[data-dropdown-input]");
+  if (!menu) return;
+  menu.hidden = true;
+  if (input) input.setAttribute("aria-expanded", "false");
+}
+
+function filterDropdown(q) {
+  const term = q.trim().toLowerCase();
+  let shown = 0;
+  viewEl.querySelectorAll(".dropdown-option").forEach((btn) => {
+    const match = (btn.dataset.search || "").includes(term);
+    btn.hidden = !match;
+    if (match) shown += 1;
+  });
+  const empty = viewEl.querySelector(".dropdown-empty");
+  if (empty) empty.hidden = shown !== 0;
+}
+
+viewEl.addEventListener("input", (e) => {
+  if (e.target.matches("[data-dropdown-input]")) {
+    openDropdown();
+    filterDropdown(e.target.value);
+  }
+});
+
+viewEl.addEventListener("focusin", (e) => {
+  if (e.target.matches("[data-dropdown-input]")) openDropdown();
+});
+
+// --- Delegated actions ---------------------------------------------------
+
+viewEl.addEventListener("click", (e) => {
+  // Close an open dropdown when clicking outside of it.
+  const dropdown = viewEl.querySelector("[data-dropdown]");
+  if (dropdown && !dropdown.contains(e.target)) closeDropdown();
+
+  const trigger = e.target.closest("[data-action]");
+  if (!trigger) return;
+
+  const action = trigger.dataset.action;
+  const name = trigger.dataset.name;
+  const slug = trigger.dataset.slug;
+  const index = trigger.dataset.index != null ? Number(trigger.dataset.index) : null;
+
+  switch (action) {
+    case "open-drill":
+      location.hash = `#/drill/${slug}`;
+      break;
+
+    case "add":
+      addToCustom(name);
+      closeDropdown();
+      break;
+
+    case "remove-custom":
+      pendingFocus = ".undo-btn";
+      removeFromCustom(name);
+      break;
+
+    case "remove-active":
+      pendingFocus = ".undo-btn";
+      removeFromActive(name);
+      break;
+
+    case "undo":
+      undoRemoval();
+      break;
+
+    case "move-up":
+      pendingFocus = `[data-action="move-up"][data-index="${index - 1}"]`;
+      moveInActive(index, -1);
+      break;
+
+    case "move-down":
+      pendingFocus = `[data-action="move-down"][data-index="${index + 1}"]`;
+      moveInActive(index, 1);
+      break;
+
+    case "review-custom":
+      reviewSource("custom");
+      location.hash = "#/review";
+      break;
+
+    case "review-preset":
+      reviewSource("preset");
+      location.hash = "#/review";
+      break;
+
+    case "review-recommended":
+      reviewSource("recommended");
+      location.hash = "#/review";
+      break;
+
+    case "back-training":
+      clearRemoved();
+      location.hash = "#/training";
+      break;
+
+    case "choose-mode":
+      location.hash = "#/setup#mode";
+      break;
+
+    case "close-dropdown":
+      closeDropdown();
+      break;
+
+    case "toggle-animate": {
+      const rink = trigger.closest(".demo")?.querySelector(".rink");
+      if (!rink) break;
+      const on = rink.classList.toggle("is-animating");
+      trigger.setAttribute("aria-pressed", String(on));
+      trigger.textContent = on ? "Ⅱ Pause diagram" : "▶ Animate movement path";
+      break;
+    }
+
+    default:
+      break;
+  }
+});
+
+// --- Drag-and-drop reordering (review page) -------------------------------
+
+let dragFrom = null;
+
+viewEl.addEventListener("dragstart", (e) => {
+  const row = e.target.closest(".reorder-row");
+  if (!row) return;
+  dragFrom = Number(row.dataset.index);
+  row.classList.add("is-dragging");
+  e.dataTransfer.effectAllowed = "move";
+});
+
+viewEl.addEventListener("dragover", (e) => {
+  if (e.target.closest(".reorder-row")) e.preventDefault();
+});
+
+viewEl.addEventListener("drop", (e) => {
+  const row = e.target.closest(".reorder-row");
+  if (!row || dragFrom === null) return;
+  e.preventDefault();
+  const to = Number(row.dataset.index);
+  reorderActive(dragFrom, to);
+  dragFrom = null;
+});
+
+viewEl.addEventListener("dragend", () => {
+  dragFrom = null;
+  viewEl.querySelectorAll(".is-dragging").forEach((el) => el.classList.remove("is-dragging"));
+});
 
 // --- Mobile drawer (the sidebar) -----------------------------------------
 
@@ -87,7 +284,7 @@ function openDrawer() {
   side.classList.add("drawer-open");
   backdrop.hidden = false;
   menuBtn.setAttribute("aria-expanded", "true");
-  document.body.style.overflow = "hidden"; // lock background scroll on phones
+  document.body.style.overflow = "hidden";
   document.addEventListener("keydown", onDrawerKeydown);
   (drawerClose || focusablesIn(side)[0] || side).focus();
 }
@@ -97,7 +294,7 @@ function closeDrawer({ restoreFocus = true } = {}) {
   side.classList.remove("drawer-open");
   backdrop.hidden = true;
   menuBtn.setAttribute("aria-expanded", "false");
-  document.body.style.overflow = ""; // restore background scroll
+  document.body.style.overflow = "";
   document.removeEventListener("keydown", onDrawerKeydown);
   if (restoreFocus) menuBtn.focus();
 }
@@ -127,8 +324,6 @@ menuBtn.addEventListener("click", () => (drawerOpen() ? closeDrawer() : openDraw
 drawerClose.addEventListener("click", () => closeDrawer());
 backdrop.addEventListener("click", () => closeDrawer());
 
-// Close the drawer after choosing a destination (PDF requirement). On desktop
-// the drawer is never open, so this is a harmless no-op there.
 side.querySelectorAll("a[href]").forEach((link) => {
   link.addEventListener("click", () => closeDrawer({ restoreFocus: false }));
 });
