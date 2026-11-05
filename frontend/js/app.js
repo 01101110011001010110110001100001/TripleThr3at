@@ -6,6 +6,7 @@
 // (add / remove / reorder / review) driven by data-action attributes.
 
 import { renderView } from "./views.js";
+import { formatDuration } from "./drills.js";
 import {
   subscribe,
   addToCustom,
@@ -16,11 +17,28 @@ import {
   moveInActive,
   reorderActive,
   reviewSource,
+  getActive,
+  getSource,
 } from "./workout.js";
+import {
+  subscribe as subscribeSession,
+  beginSession,
+  startCountdown,
+  startNow,
+  togglePause,
+  completeNow,
+  skipRest,
+  openEndConfirm,
+  keepGoing,
+  confirmEnd,
+  toggleDemo,
+  resetSession,
+  getState as getSessionState,
+} from "./session.js";
 
-const ROUTES = ["home", "training", "progress", "profile", "setup", "drill", "review"];
+const ROUTES = ["home", "training", "progress", "profile", "setup", "drill", "review", "session"];
 // Flow routes that should keep the Training nav item highlighted.
-const TRAINING_FLOW = ["training", "drill", "review", "setup"];
+const TRAINING_FLOW = ["training", "drill", "review", "setup", "session"];
 
 const viewEl = document.getElementById("view");
 
@@ -68,6 +86,8 @@ function router() {
   }
 
   const { route, param, anchor } = parseHash();
+  // Leaving the guided session tears down its timers.
+  if (route !== "session") resetSession();
   render(route, param);
   closeDrawer({ restoreFocus: false });
 
@@ -100,6 +120,25 @@ function rerenderInPlace() {
 
 // Re-render whenever the workout state changes.
 subscribe(rerenderInPlace);
+
+// Session runtime: "tick" updates only the time readouts in place (so the
+// 1-second timer never steals focus or resets scroll); "phase" re-renders.
+function updateTimerDisplays() {
+  if (parseHash().route !== "session") return;
+  const st = getSessionState();
+  const set = (bind, value) => {
+    const el = viewEl.querySelector(`[data-bind="${bind}"]`);
+    if (el) el.textContent = value;
+  };
+  set("countdown", st.countdown);
+  set("active-remaining", formatDuration(st.activeRemaining));
+  set("rest-remaining", formatDuration(st.restRemaining));
+}
+
+subscribeSession((reason) => {
+  if (reason === "tick") updateTimerDisplays();
+  else rerenderInPlace();
+});
 
 // --- Dropdown (Add a drill search) ---------------------------------------
 
@@ -208,11 +247,48 @@ viewEl.addEventListener("click", (e) => {
 
     case "back-training":
       clearRemoved();
+      resetSession();
       location.hash = "#/training";
       break;
 
+    case "back-review":
+      resetSession();
+      location.hash = "#/review";
+      break;
+
     case "choose-mode":
-      location.hash = "#/setup#mode";
+      // Begin the guided timer session from the chosen order (TRI-12).
+      beginSession({ workout: getActive(), source: getSource(), mode: "timer" });
+      location.hash = "#/session";
+      break;
+
+    // --- Guided session controls ---
+    case "start-countdown":
+      startCountdown();
+      break;
+    case "start-now":
+      startNow();
+      break;
+    case "toggle-pause":
+      togglePause();
+      break;
+    case "complete-drill":
+      completeNow();
+      break;
+    case "skip-rest":
+      skipRest();
+      break;
+    case "end-confirm":
+      openEndConfirm();
+      break;
+    case "keep-going":
+      keepGoing();
+      break;
+    case "confirm-end":
+      confirmEnd();
+      break;
+    case "toggle-demo":
+      toggleDemo();
       break;
 
     case "close-dropdown":

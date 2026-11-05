@@ -25,6 +25,7 @@ import {
   getRemoved,
   isInCustom,
 } from "./workout.js";
+import { renderSession } from "./sessionviews.js";
 
 // Inline SVG icons (aria-hidden; always paired with visible text).
 const icon = {
@@ -544,6 +545,7 @@ const TITLES = {
   training: "Workout Builder",
   drill: "Drill Details",
   review: "Workout Review",
+  session: "Guided Session",
   progress: "Progress",
   profile: "Profile",
   setup: "Set Up",
@@ -561,6 +563,8 @@ export function renderView(route, param) {
       return { html: drillDetail(param), title: TITLES.drill };
     case "review":
       return { html: review(), title: TITLES.review };
+    case "session":
+      return { html: renderSession(), title: TITLES.session };
     case "progress":
       return { html: progress(), title: TITLES.progress };
     case "profile":
