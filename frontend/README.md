@@ -1,9 +1,9 @@
-# StickSmart — Frontend (App Shell & Navigation)
+# StickSmart — Frontend (App Shell, Navigation & Workout Builder)
 
-Plain **HTML5 + CSS + vanilla JS** (no framework, no build step). This is the
-TRI-6 deliverable: the app shell and persistent navigation that every later
-screen plugs into. It currently calls no backend; it will call Ethan's
-Python/MySQL API over `fetch` in a later ticket.
+Plain **HTML5 + CSS + vanilla JS** (no framework, no build step). The app shell
+and persistent navigation are the TRI-6 deliverable; the drill library, workout
+builder, drill details, and workout review are **TRI-11**. It currently calls no
+backend; it will call Ethan's Python/MySQL API over `fetch` in a later ticket.
 
 > **Naming:** the product UI is branded **StickSmart** (that's the name used in
 > the final Figma). **TripleThr3at** is the team / repository name.
@@ -27,10 +27,32 @@ Then open <http://localhost:8000>.
 frontend/
   index.html      App shell: skip link, navy sidebar, mobile top bar, <main>, bottom dock
   css/styles.css  Design tokens (CSS custom properties from Figma), layout, responsive, focus styles
-  js/app.js       Hash router, active-nav state, drawer open/close + focus handling, guest state
-  js/views.js     View render functions (Home, Training, Progress, Profile, Setup)
-  js/drills.js    The 4 drills (copy from Figma + TT3database/drill_catalog.sql)
+  js/app.js       Hash router (+ params), active-nav state, drawer handling, delegated builder actions, drag-reorder
+  js/views.js     View render functions (Home, Training/Builder, Drill detail, Review, Progress, Profile, Setup)
+  js/workout.js   Workout state: selected drills, add/remove/reorder/undo, preset vs custom, localStorage persistence
+  js/drills.js    The 4 drills + workout math (copy/data from Figma + TT3database/drill_catalog.sql)
+  js/diagram.js   Inline-SVG rink movement diagrams, one motion path per drill
 ```
+
+## Workout builder (TRI-11)
+
+Three ways to assemble a session, all reachable from **Training**:
+
+- **Manual** — browse the drill library and `+ Add drill` (or the *Add a drill*
+  search) to build a custom workout; each drill is added once.
+- **Preset** — *Quick Hands Builder*, a ready-made 3-drill sequence kept
+  **separate** from the custom workout.
+- **Recommended** — the same sequence surfaced as a clearly labeled sample.
+
+Open any drill for **details**: how to perform it (numbered steps), marker
+placement, equipment, environment, measurement, work/rest intervals, what counts
+as one rep, and a technique cue (plus an animated movement diagram).
+
+**Review** lists the chosen drills in training order. Reorder by drag, or with
+the ↑/↓ controls; remove with one-step **Undo**; totals (active / rest / planned)
+update live. The chosen order is what *Choose Training Mode* hands off to the
+(later) guided session screens. The custom workout **persists** to
+`localStorage` so guest state survives navigation and reloads.
 
 ## Navigation (matches the final Figma)
 
@@ -44,8 +66,9 @@ live inside Profile** (per the final Figma / TRI-5 PDF §5).
   a hamburger (top bar) that slides the sidebar in as a **drawer**. The drawer
   closes after a destination is selected, on Esc, and on backdrop tap.
 
-Routes are hash-based: `#/home`, `#/training`, `#/progress`, `#/profile`,
-`#/setup` (and `#/profile#settings` to jump to the Settings section).
+Routes are hash-based: `#/home`, `#/training`, `#/drill/<slug>`, `#/review`,
+`#/progress`, `#/profile`, `#/setup` (and `#/profile#settings` to jump to the
+Settings section).
 
 ## Accessibility & status
 
@@ -71,9 +94,11 @@ primary blue `#1676b9`, orange accent `#ff9e1b`, 16px radius, **Work Sans**
 
 ## Scope
 
-Shell + navigation only. The setup wizard, drill details/builder, workout
-runtime & timers, results, real auth/persistence, and camera/voice (simulated)
-are placeholders here and ship in later tickets.
+Shell, navigation, drill library, workout builder, drill details, and
+review/reorder. The guided **session runtime** (training-mode selection, timers,
+camera/timer-only, finish summary, AI advisor), the full setup wizard, and real
+auth/persistence are placeholders here and ship in later tickets — *Choose
+Training Mode* hands the chosen order off to that runtime.
 
 ## Note for reviewers
 
