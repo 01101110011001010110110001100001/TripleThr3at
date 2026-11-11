@@ -1166,6 +1166,62 @@ a { color: var(--blue-strong); }
 .audio-pref { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 18px; }
 .audio-pref__note { margin: 0; font-size: 0.84rem; color: var(--muted); }
 
+/* ---- Hands-free voice control (TRI-18) ---- */
+.voice {
+  margin: 16px 0;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.voice-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.voice-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  vertical-align: middle;
+}
+.voice-cmds { margin: 10px 0 6px; font-size: 0.9rem; color: var(--ink); }
+.voice-cmds b { font-weight: 700; }
+.voice-heard {
+  margin: 6px 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+  padding: 8px 12px;
+  background: var(--paper);
+  border-radius: var(--radius-sm);
+}
+.voice-ran b { color: var(--blue-strong); }
+.voice-err {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 6px 0;
+  font-size: 0.86rem;
+  color: var(--danger);
+}
+.voice-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
 /* Honour reduced motion already handled globally; cue swaps are instant. */
 
 /* ---- Rest ---- */
