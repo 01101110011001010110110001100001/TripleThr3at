@@ -8,9 +8,53 @@ import { getDrill, formatDuration, targetLabel } from "./drills.js";
 import { drillDiagram } from "./diagram.js";
 import { getState } from "./session.js";
 import { CUE } from "./feedback.js";
+import { getVoiceStatus } from "./voice.js";
 
 function tag(label) {
   return `<span class="tag tag--orange">${label}</span>`;
+}
+
+// --- Hands-free voice control (TRI-18) -----------------------------------
+
+// Inner content of the voice panel. Rendered identically in every session
+// phase and swapped in place by app.js, so one updater serves all of them.
+// When the browser has no speech-recognition support the panel honestly says
+// so and points at the always-available touch controls.
+export function renderVoiceInner() {
+  const v = getVoiceStatus();
+  if (!v.supported) {
+    return `<p class="voice-note"><span class="coach-glyph" aria-hidden="true">${CUE.unavailable.glyph}</span> Voice control isn’t available in this browser — the touch controls below always work.</p>`;
+  }
+  const on = v.enabled;
+  const statusWord = on ? (v.listening ? "Listening…" : "On") : "Off";
+  const heard = v.lastCommand
+    ? `<span class="voice-ran">✓ Ran: <b>${v.lastCommand}</b></span>`
+    : v.lastHeard
+    ? `Heard: “${v.lastHeard}”`
+    : "Listening — say a command.";
+  return `
+    <div class="voice-head">
+      <span class="coach-eyebrow">Hands-free voice <span class="voice-tag">optional</span></span>
+      <button type="button" class="coach-audio" data-action="toggle-voice" aria-pressed="${on}">
+        <span class="coach-glyph" aria-hidden="true">${on ? "◉" : "○"}</span>
+        <span>Voice: <b>${statusWord}</b></span>
+      </button>
+    </div>
+    <p class="voice-cmds">Say: ${v.commands.map((c) => `<b>${c.label}</b>`).join(" · ")}</p>
+    ${on ? `<p class="voice-heard">${heard}</p>` : ""}
+    ${
+      v.error === "not-allowed" || v.error === "service-not-allowed"
+        ? `<p class="voice-err"><span class="coach-glyph" aria-hidden="true">${CUE.unavailable.glyph}</span> Microphone access was blocked — touch controls still work.</p>`
+        : ""
+    }
+    <p class="voice-note"><span class="coach-glyph" aria-hidden="true">ⓘ</span> Touch always works. “End” by voice opens a confirmation first, so a misheard word never ends your session.</p>`;
+}
+
+// Voice panel wrapper. aria-live="off" so recognition status chatter never
+// spams assistive tech — the real confirmation is the session change itself
+// (announced by the pause banner / phase change).
+export function renderVoice() {
+  return `<div class="voice" data-bind="voice" aria-live="off">${renderVoiceInner()}</div>`;
 }
 
 // --- Live technique feedback (TRI-17) ------------------------------------
@@ -109,6 +153,8 @@ function ready(st) {
         <p class="audio-pref__note">Spoken heads-up and “ten seconds left” prompts play during each drill. Visual cues always show; pause silences prompts and you can mute anytime.</p>
       </div>
 
+      ${renderVoice()}
+
       <button type="button" class="btn btn--primary large-start" data-action="start-countdown">Start 3-Second Touch Countdown</button>
     </section>`;
 }
@@ -130,6 +176,7 @@ function countdown(st) {
         <button type="button" class="large-ctrl" data-action="toggle-pause">${st.paused ? "▶ Resume" : "Ⅱ Pause"}</button>
         <button type="button" class="large-ctrl secondary" data-action="start-now">Start now</button>
       </div>
+      ${renderVoice()}
       ${st.confirmOpen ? confirmDialog("The countdown is paused. The summary will preserve the current drill as not started.") : ""}
     </section>`;
 }
@@ -168,6 +215,8 @@ function active(st) {
         <button type="button" class="large-ctrl primary" data-action="complete-drill"><b aria-hidden="true">✓</b><span>Complete Drill</span></button>
       </div>
 
+      ${renderVoice()}
+
       ${st.confirmOpen ? confirmDialog("The active timer is paused. The summary will include only active and rest time completed before this dialog opened.") : ""}
     </section>`;
 }
@@ -201,6 +250,8 @@ function rest(st) {
         <button type="button" class="large-ctrl" data-action="skip-rest">Skip Rest · Ready Next Drill</button>
         <button type="button" class="end-rest" data-action="end-confirm">End workout early</button>
       </div>
+
+      ${renderVoice()}
 
       ${st.confirmOpen ? confirmDialog("The rest timer is paused. The next drill will not start while this dialog is open.") : ""}
     </section>`;
