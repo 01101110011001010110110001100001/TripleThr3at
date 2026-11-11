@@ -6,6 +6,7 @@
 // (add / remove / reorder / review) driven by data-action attributes.
 
 import { renderView } from "./views.js";
+import { renderCoach, coachAnnouncement } from "./sessionviews.js";
 import { formatDuration } from "./drills.js";
 import {
   subscribe,
@@ -32,6 +33,7 @@ import {
   keepGoing,
   confirmEnd,
   toggleDemo,
+  toggleAudioPrompts,
   resetSession,
   getState as getSessionState,
 } from "./session.js";
@@ -135,9 +137,25 @@ function updateTimerDisplays() {
   set("rest-remaining", formatDuration(st.restRemaining));
 }
 
+// Swap the live-coaching panel in place (TRI-17) so a changed cue never steals
+// focus or resets scroll — same technique as the timer readouts above.
+function updateCoachDisplay() {
+  if (parseHash().route !== "session") return;
+  const st = getSessionState();
+  if (st.phase !== "active") return;
+  const el = viewEl.querySelector('[data-bind="coach"]');
+  if (el) el.innerHTML = renderCoach(st); // visual only (aria-live="off")
+  // Route the announcement through the one persistent assertive live region.
+  const sr = viewEl.querySelector('[data-bind="coach-sr"]');
+  if (sr) sr.textContent = coachAnnouncement(st);
+}
+
 subscribeSession((reason) => {
   if (reason === "tick") updateTimerDisplays();
-  else rerenderInPlace();
+  else if (reason === "coach") {
+    updateTimerDisplays();
+    updateCoachDisplay();
+  } else rerenderInPlace();
 });
 
 // --- Dropdown (Add a drill search) ---------------------------------------
@@ -289,6 +307,9 @@ viewEl.addEventListener("click", (e) => {
       break;
     case "toggle-demo":
       toggleDemo();
+      break;
+    case "toggle-audio":
+      toggleAudioPrompts();
       break;
 
     case "close-dropdown":

@@ -7,9 +7,61 @@
 import { getDrill, formatDuration, targetLabel } from "./drills.js";
 import { drillDiagram } from "./diagram.js";
 import { getState } from "./session.js";
+import { CUE } from "./feedback.js";
 
 function tag(label) {
   return `<span class="tag tag--orange">${label}</span>`;
+}
+
+// --- Live technique feedback (TRI-17) ------------------------------------
+
+// Spoken-audio preference control. Honest about capability: when the browser
+// has no speech support we say so and fall back to visual cues only.
+function audioControl(st) {
+  if (!st.audioSupported) {
+    return `<p class="coach-audio coach-audio--off"><span class="coach-glyph" aria-hidden="true">${CUE.unavailable.glyph}</span> Audio prompts aren’t available in this browser — visual cues are shown instead.</p>`;
+  }
+  const on = st.audioOn;
+  return `
+    <button type="button" class="coach-audio" data-action="toggle-audio" aria-pressed="${on}">
+      <span class="coach-glyph" aria-hidden="true">${on ? "♪" : CUE.unavailable.glyph}</span>
+      <span>Audio prompts: <b>${on ? "On" : "Muted"}</b></span>
+    </button>`;
+}
+
+// The live coaching panel body. Rendered inline in the active view and swapped
+// in place by app.js whenever a prompt changes, so it never steals focus or
+// resets scroll. Returns a transient prompt if one is showing, otherwise the
+// steady technique reminder for the current drill.
+export function renderCoach(st) {
+  const p = st.prompt;
+  const cue = p || {
+    glyph: CUE.reminder.glyph,
+    label: "Reminder",
+    tone: "info",
+    text: st.drill.cue,
+  };
+  return `
+    <div class="coach-head">
+      <span class="coach-eyebrow">Live coaching</span>
+      ${audioControl(st)}
+    </div>
+    <div class="coach-row coach-row--${cue.tone}">
+      <span class="coach-glyph" aria-hidden="true">${cue.glyph}</span>
+      <span class="coach-text"><b>${cue.label}:</b> ${cue.text}</span>
+    </div>
+    <p class="coach-note">
+      <span class="coach-glyph" aria-hidden="true">${CUE.unavailable.glyph}</span>
+      Timer-only mode — these are time-based reminders, not live camera
+      measurements. Movement tracking arrives in a later update.
+    </p>`;
+}
+
+// The screen-reader announcement for the current prompt (empty when none).
+// Fed into a single persistent live region so announcements are reliable and
+// not duplicated by the parent <main aria-live="polite">.
+export function coachAnnouncement(st) {
+  return st.prompt ? `${st.prompt.label}. ${st.prompt.text}` : "";
 }
 
 // Finish-early confirmation dialog (shared by countdown / active / rest).
@@ -51,6 +103,11 @@ function ready(st) {
       <p class="timer-only-note"><b>Camera measurements unavailable in timer-only mode.</b> Use the touch countdown below. Camera tracking arrives in a later update.</p>
 
       ${demoToggle(st)}
+
+      <div class="audio-pref">
+        ${audioControl(st)}
+        <p class="audio-pref__note">Spoken heads-up and “ten seconds left” prompts play during each drill. Visual cues always show; pause silences prompts and you can mute anytime.</p>
+      </div>
 
       <button type="button" class="btn btn--primary large-start" data-action="start-countdown">Start 3-Second Touch Countdown</button>
     </section>`;
@@ -94,8 +151,6 @@ function active(st) {
           <div class="active-label">${d.name.toUpperCase()}</div>
           <div class="timer" data-bind="active-remaining" role="timer" aria-live="off">${formatDuration(st.activeRemaining)}</div>
           <div class="timer-caption">ACTIVE TIME REMAINING</div>
-          <div class="cue cue-warn"><span aria-hidden="true">ⓘ</span> Reminder: ${d.cue}</div>
-          <p class="timer-only-note">Camera-based repetitions, puck width, and tracking accuracy are unavailable in timer-only mode.</p>
         </div>
         <div class="active-diagram">
           ${drillDiagram(d)}
@@ -103,7 +158,10 @@ function active(st) {
         </div>
       </div>
 
-      ${st.paused ? `<div class="pause-banner">Workout paused · elapsed active time is stopped</div>` : ""}
+      <div class="coach" data-bind="coach" aria-live="off">${renderCoach(st)}</div>
+      <span class="sr-only" data-bind="coach-sr" role="status" aria-live="assertive">${coachAnnouncement(st)}</span>
+
+      ${st.paused ? `<div class="pause-banner">Workout paused · elapsed active time and audio prompts are stopped</div>` : ""}
 
       <div class="active-controls">
         <button type="button" class="large-ctrl" data-action="toggle-pause"><b aria-hidden="true">${st.paused ? "▶" : "Ⅱ"}</b><span>${st.paused ? "Resume" : "Pause"}</span></button>
