@@ -1079,6 +1079,95 @@ a { color: var(--blue-strong); }
 .active-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
 .active-controls .large-ctrl { width: 100%; flex-direction: column; }
 
+/* ---- Live technique feedback (TRI-17) ---- */
+/* Screen-reader-only live region: visible to assistive tech, off-screen for
+   sighted users. Carries the same prompt that audio speaks. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.coach {
+  margin: 18px 0 4px;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.coach-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.coach-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.coach-audio {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.coach-audio:hover { border-color: var(--blue); }
+.coach-audio[aria-pressed="false"] { color: var(--muted); }
+.coach-audio--off { margin: 0; color: var(--muted); font-size: 0.84rem; cursor: default; }
+.coach-glyph { font-weight: 800; flex: none; }
+
+/* Cue row. Tone changes the surface AND the left rule, but every cue also
+   carries a glyph and a worded label, so meaning never depends on colour. */
+.coach-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border-left: 5px solid var(--muted);
+  font-size: 0.95rem;
+  background: var(--paper);
+}
+.coach-row .coach-glyph { font-size: 1.15rem; line-height: 1.3; }
+.coach-row--good { background: #eaf6ee; border-left-color: #2f7d4f; color: #1f5537; }
+.coach-row--warn { background: #fff6e8; border-left-color: #c9871f; color: #7a5212; }
+.coach-row--info { background: var(--blue-tint); border-left-color: var(--blue); color: #10456b; }
+.coach-row--time { background: #fff3df; border-left-color: var(--orange); color: #8a5a06; }
+.coach-row--muted { background: var(--paper); border-left-color: var(--line); color: var(--muted); }
+.coach-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.audio-pref { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 18px; }
+.audio-pref__note { margin: 0; font-size: 0.84rem; color: var(--muted); }
+
+/* Honour reduced motion already handled globally; cue swaps are instant. */
+
 /* ---- Rest ---- */
 .session-rest { text-align: center; }
 .rest-icon { font-size: 2.4rem; color: var(--blue); }

@@ -33,6 +33,7 @@ frontend/
   js/workout.js   Workout state: selected drills, add/remove/reorder/undo, preset vs custom, localStorage persistence
   js/session.js   Guided-session state machine: pause-aware timers, phase transitions, finish-early, summary
   js/sessionviews.js  Runtime phase views (ready / countdown / active / rest / summary)
+  js/feedback.js  Live technique feedback (TRI-17): cue vocabulary + Web Speech audio layer
   js/drills.js    The 4 drills + workout math (copy/data from Figma + TT3database/drill_catalog.sql)
   js/diagram.js   Inline-SVG rink movement diagrams, one motion path per drill
 ```
@@ -58,6 +59,18 @@ against the chosen order. Each drill runs a phase cycle:
 
 Camera / simulated-tracking mode and the AI advisor are a later ticket (TRI-15);
 the session is labeled timer-only throughout.
+
+## Live technique feedback (TRI-17)
+
+During the active phase a **Live coaching** panel shows heads-up / posture
+reminders and a **ten-seconds-left** prompt, with optional spoken audio. It is
+honest that this is **timer-only mode** — the cues are time-based reminders, not
+camera measurements — and it exposes an `ingestTrackingEvent()` seam so that
+when tracking (TRI-15) lands, real positive / corrective cues render in the same
+panel with no view changes. Prompts are **rate-limited**, every cue uses an
+**icon + worded label (never colour alone)**, **audio can be muted** (persists in
+`localStorage`), and **pausing silences prompts**. Full notes:
+[`docs/live-feedback.md`](../docs/live-feedback.md).
 
 ## Workout builder (TRI-11)
 

@@ -15,8 +15,26 @@
 //   "phase" — structural change (re-render the view)
 
 import { getDrill } from "./drills.js";
+import {
+  reminderRotation,
+  makeCue,
+  TEN_SECONDS_CUE,
+  speak,
+  cancelSpeech,
+  audioEnabled,
+  speechSupported,
+  toggleAudio,
+} from "./feedback.js";
 
 const DEMO_MULTIPLIER = 15; // demo speed so a review isn't a 4-minute wait
+
+// Live-feedback cadence (all measured in real drill-seconds, so the schedule is
+// unaffected by demo speed). Reminders are rate-limited to one per REMINDER_GAP.
+const REMINDER_FIRST = 20; // first reminder after 20s of active time
+const REMINDER_GAP = 45; // minimum active-seconds between reminders
+const PROMPT_TTL = 8; // active-seconds a transient prompt stays on screen
+const TEN_AT = 10; // "ten seconds left" threshold
+const REMINDER_LOCKOUT = 15; // no reminders inside the final seconds
 
 const s = {
   activeRun: false, // is a session in progress (vs. idle)
@@ -37,6 +55,17 @@ const s = {
   confirmOpen: false,
   endedEarly: false,
   demo: true,
+
+  // --- Live technique feedback (TRI-17) ---
+  prompt: null, // current transient cue {kind, glyph, label, tone, text} or null
+  promptTtl: 0, // active-seconds the current prompt stays visible
+  announce: 0, // bumps whenever a prompt should be announced (SR live region)
+  reminders: [], // per-drill reminder rotation
+  reminderIndex: 0,
+  nextReminderAt: REMINDER_FIRST, // active-elapsed threshold for the next reminder
+  tenFired: false, // ten-seconds-left prompt fired for this drill
+  audioOn: audioEnabled(), // spoken prompts on (and supported)
+  audioSupported: speechSupported(),
 };
 
 let timer = null;
@@ -88,14 +117,18 @@ function tick() {
   if (s.phase === "active") {
     const step = s.demo ? DEMO_MULTIPLIER : 1;
     const dec = Math.min(step, s.activeRemaining);
+    const prevRemaining = s.activeRemaining;
     s.activeRemaining -= dec;
     s.activeElapsed += dec;
     s.currentActiveElapsed += dec;
     if (s.activeRemaining <= 0) {
       completeDrill();
-    } else {
-      notify("tick");
+      return;
     }
+    // Live feedback: a changed prompt needs a coach re-render ("coach"),
+    // otherwise only the timer readout moved ("tick").
+    const changed = updateActiveFeedback(prevRemaining, dec);
+    notify(changed ? "coach" : "tick");
     return;
   }
 
@@ -120,6 +153,73 @@ function enterActive() {
   s.phase = "active";
   s.activeRemaining = d.activeSeconds;
   s.currentActiveElapsed = 0;
+  // Reset per-drill live feedback and announce the start.
+  s.reminders = reminderRotation(d);
+  s.reminderIndex = 0;
+  s.nextReminderAt = REMINDER_FIRST;
+  s.tenFired = false;
+  s.prompt = null;
+  s.promptTtl = 0;
+  speak(`${d.name}. Go.`);
+}
+
+// --- Live technique feedback (TRI-17) ------------------------------------
+
+// Show a cue and (if audio is on and the session is running) speak it. Pause
+// silences prompts because the tick is gated by running(), so this is only
+// ever reached while the session is actually running.
+function setPrompt(cue) {
+  s.prompt = cue;
+  s.promptTtl = PROMPT_TTL;
+  s.announce += 1; // signals the SR live region to re-announce
+  speak(`${cue.label}. ${cue.text}`);
+}
+
+// Runs once per active tick (never while paused). Returns true when the visible
+// prompt changed, so the caller knows to re-render the coach panel.
+function updateActiveFeedback(prevRemaining, dec) {
+  let changed = false;
+
+  // Expire the current transient prompt back to the steady reminder.
+  if (s.prompt) {
+    s.promptTtl -= dec;
+    if (s.promptTtl <= 0) {
+      s.prompt = null;
+      changed = true;
+    }
+  }
+
+  // Ten-seconds-left prompt — fires once, on crossing into the final window.
+  if (!s.tenFired && prevRemaining > TEN_AT && s.activeRemaining <= TEN_AT) {
+    setPrompt(TEN_SECONDS_CUE);
+    s.tenFired = true;
+    return true;
+  }
+
+  // Heads-up / posture reminder — rate-limited, and never in the final seconds
+  // where it would collide with the ten-seconds prompt.
+  if (
+    s.activeRemaining > REMINDER_LOCKOUT &&
+    s.activeElapsed >= s.nextReminderAt &&
+    s.reminders.length
+  ) {
+    setPrompt(s.reminders[s.reminderIndex % s.reminders.length]);
+    s.reminderIndex += 1;
+    s.nextReminderAt = s.activeElapsed + REMINDER_GAP;
+    return true;
+  }
+
+  return changed;
+}
+
+// Integration seam for real computer-vision tracking (TRI-15). Timer-only mode
+// never calls this, so measured positive/corrective cues are never faked; once
+// TRI-15 emits events, routing them here surfaces live feedback with no change
+// to the session views. `evt` is { kind: "positive"|"corrective"|..., text }.
+export function ingestTrackingEvent(evt) {
+  if (!running() || s.phase !== "active" || !evt || !evt.text) return;
+  setPrompt(makeCue(evt.kind || "reminder", evt.text));
+  notify("coach");
 }
 
 // Completing the current drill — guarded so it only fires once per drill.
@@ -161,6 +261,8 @@ function finish(early) {
   s.activeRun = false;
   s.paused = false;
   s.confirmOpen = false;
+  s.prompt = null;
+  cancelSpeech(); // never talk over the summary
   stopLoop();
   notify("phase");
 }
@@ -185,6 +287,15 @@ export function beginSession({ workout, source, mode = "timer" }) {
   s.paused = false;
   s.confirmOpen = false;
   s.endedEarly = false;
+  s.prompt = null;
+  s.promptTtl = 0;
+  s.reminders = [];
+  s.reminderIndex = 0;
+  s.nextReminderAt = REMINDER_FIRST;
+  s.tenFired = false;
+  s.audioOn = audioEnabled();
+  s.audioSupported = speechSupported();
+  cancelSpeech();
   startLoop();
   notify("phase");
 }
@@ -204,7 +315,15 @@ export function startNow() {
 
 export function togglePause() {
   s.paused = !s.paused;
+  if (s.paused) cancelSpeech(); // pause silences in-flight audio prompts
   notify("phase");
+}
+
+// Mute / unmute spoken prompts (visual cues always remain). Persists.
+export function toggleAudioPrompts() {
+  s.audioOn = toggleAudio();
+  notify("phase");
+  return s.audioOn;
 }
 
 // "Complete Drill" button — same guarded path as the timer reaching zero.
@@ -243,6 +362,8 @@ export function toggleDemo() {
 export function resetSession() {
   s.activeRun = false;
   s.phase = "ready";
+  s.prompt = null;
+  cancelSpeech();
   stopLoop();
 }
 
