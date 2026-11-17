@@ -15,6 +15,7 @@
 //   "phase" — structural change (re-render the view)
 
 import { getDrill } from "./drills.js";
+import { recordSession } from "./history.js";
 import {
   reminderRotation,
   makeCue,
@@ -264,6 +265,9 @@ function finish(early) {
   s.prompt = null;
   cancelSpeech(); // never talk over the summary
   stopLoop();
+  // Persist the real session metrics for Progress (TRI-23). Recorded once per
+  // finished session, whether completed or ended early.
+  recordSession(s);
   notify("phase");
 }
 
