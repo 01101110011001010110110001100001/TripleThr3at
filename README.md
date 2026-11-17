@@ -12,6 +12,12 @@ python3 -m http.server 8000 --directory frontend
 ```
 Then open <http://localhost:8000>.
 
+## Live site
+Deployed via GitHub Pages (auto-deploys on every push to `main`):
+<https://01101110011001010110110001100001.github.io/TripleThr3at/>
+
+To point a custom domain at it, see [docs/custom-domain-setup.md](docs/custom-domain-setup.md).
+
 ## Documentation
 - [User guide](docs/user-guide.md) — setup, terms, building a workout, training, progress, settings, and limits.
 - [Demo script](docs/demo-script.md) — full end-to-end demonstration walkthrough.
