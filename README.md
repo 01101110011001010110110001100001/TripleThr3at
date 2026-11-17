@@ -16,4 +16,5 @@ Then open <http://localhost:8000>.
 - [User guide](docs/user-guide.md) — setup, terms, building a workout, training, progress, settings, and limits.
 - [Demo script](docs/demo-script.md) — full end-to-end demonstration walkthrough.
 - Feature notes: [live feedback](docs/live-feedback.md) · [hands-free controls](docs/hands-free-controls.md) · [settings & profile](docs/settings-and-profile.md) · [progress & recommendations](docs/progress-and-recommendations.md) · [tracking validation](docs/tracking-validation.md).
+- [Accessibility & acceptance validation](docs/accessibility-validation.md) — final GUI validation results (keyboard, glove-use, colour-blind cues).
 

@@ -95,8 +95,8 @@ function tag(label, tone = "blue") {
 function home() {
   const paths = [
     ["01", "Browse first", "Review drills and workouts before signing up."],
-    ["02", "Preview guided training", "Try a guided workout with touch controls. Preview how future hands-free training will work."],
-    ["03", "See what is next", "Progress and AI recommendations are clearly labeled sample previews until you have real saved workout data."],
+    ["02", "Guided training", "Run a guided workout with large touch controls and optional hands-free voice."],
+    ["03", "See your progress", "After each session, progress saves on this device and recommendations come from your own history."],
   ]
     .map(
       ([n, t, d]) => `
@@ -125,14 +125,14 @@ function home() {
 
       <p class="account-note">
         <b>No account needed to explore.</b>
-        <span>Create one when you are ready to save workouts, preferences, and progress.</span>
+        <span>Your workouts, preferences, and progress already save on this device. Accounts for cross-device sync arrive in a later update.</span>
       </p>
 
       <ul class="path-grid" aria-label="Ways to get started">${paths}</ul>
 
       <p class="note">
-        <b>Workout timers and navigation work in this demo.</b>
-        <span>Camera tracking, voice and movement controls, AI advice, and account saving are simulated.</span>
+        <b>Timers, navigation, guided sessions, optional voice, and saved progress all work in this demo.</b>
+        <span>Camera-based repetition and technique tracking is the next phase — it is clearly labeled wherever it would appear.</span>
       </p>
     </section>`;
 }
