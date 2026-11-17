@@ -12,3 +12,8 @@ python3 -m http.server 8000 --directory frontend
 ```
 Then open <http://localhost:8000>.
 
+## Documentation
+- [User guide](docs/user-guide.md) — setup, terms, building a workout, training, progress, settings, and limits.
+- [Demo script](docs/demo-script.md) — full end-to-end demonstration walkthrough.
+- Feature notes: [live feedback](docs/live-feedback.md) · [hands-free controls](docs/hands-free-controls.md) · [settings & profile](docs/settings-and-profile.md) · [progress & recommendations](docs/progress-and-recommendations.md) · [tracking validation](docs/tracking-validation.md).
+
