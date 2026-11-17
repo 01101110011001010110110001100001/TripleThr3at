@@ -1326,3 +1326,168 @@ a { color: var(--blue-strong); }
   .active-content { grid-template-columns: 1.1fr 1fr; }
   .summary-metrics { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* =====================================================================
+   TRI-24 — Settings, profile, guest identity & optional setup flow
+   ===================================================================== */
+
+/* --- Accessibility preferences (applied as classes on <html>) --------- */
+
+/* Large workout text: scale the rem base so timers, controls and body copy
+   all grow together (session timers use rem / clamp(rem), so they scale too). */
+html.pref-large-text { font-size: 112.5%; }
+
+/* Reduced-motion override: the same effect as the OS setting, but user-chosen.
+   Mirrors the @media (prefers-reduced-motion) rules so either path silences
+   animation and long transitions. */
+html.pref-reduced-motion *,
+html.pref-reduced-motion *::before,
+html.pref-reduced-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+html.pref-reduced-motion .rink.is-animating .rink-path,
+html.pref-reduced-motion .rink.is-animating .rink-player { animation: none; }
+
+/* --- Profile identity / account --------------------------------------- */
+
+.profile-identity .field { margin: 16px 0 10px; }
+.field label { display: block; font-weight: 700; margin-bottom: 6px; }
+.field-opt { font-weight: 500; color: var(--muted); }
+.field input[type="text"] {
+  width: 100%;
+  max-width: 360px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  color: var(--ink);
+  background: #fff;
+}
+.field input[type="text"]:focus-visible { border-color: var(--blue); }
+.field-hint { margin: 6px 0 0; font-size: 0.86rem; color: var(--muted); }
+
+.limits {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: var(--blue-tint);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.limits__title { margin: 0 0 8px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+.limits__title svg { color: var(--blue); }
+.limits ul { margin: 0 0 8px; padding-left: 18px; display: grid; gap: 6px; }
+.limits li { font-size: 0.95rem; }
+.limits .muted { margin: 0; font-size: 0.86rem; }
+
+/* --- Setting rows (functional controls) ------------------------------- */
+
+.settings-group { margin-top: 22px; }
+.setting { align-items: center; }
+.setting__label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.setting__label b { font-weight: 700; }
+.setting__label small { color: var(--muted); font-size: 0.85rem; }
+.setting-static { text-align: right; }
+.setting-static b { display: block; }
+.setting-static small { display: block; color: var(--muted); font-size: 0.82rem; }
+.setting-off { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.9rem; }
+.setting-off svg { color: var(--blue); }
+.settings-foot { margin-top: 20px; }
+
+/* --- Segmented control ------------------------------------------------- */
+
+.seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.seg-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 15px;
+  min-height: 40px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.seg-btn:hover { color: var(--blue-strong); }
+.seg-btn.is-on {
+  background: var(--blue);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(7, 27, 53, 0.18);
+}
+.seg-tick { font-weight: 800; }
+
+/* --- On/off switch ----------------------------------------------------- */
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  padding: 6px;
+}
+.switch__track {
+  width: 52px;
+  height: 30px;
+  border-radius: 999px;
+  background: #cdd6de;
+  border: 1px solid var(--line);
+  position: relative;
+  transition: background 0.15s var(--ease);
+  flex: 0 0 auto;
+}
+.switch__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(7, 27, 53, 0.3);
+  transition: transform 0.15s var(--ease);
+}
+.switch.is-on .switch__track { background: var(--blue); }
+.switch.is-on .switch__thumb { transform: translateX(22px); }
+.switch__state { min-width: 2.4ch; text-align: left; }
+
+/* --- Optional setup flow ---------------------------------------------- */
+
+.setup-step { margin-top: 16px; }
+.setup-step .seg { margin-top: 6px; }
+.setup-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.setup-field:last-child { border-bottom: 0; }
+.setup-field > span { font-weight: 700; }
+.setting--inline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}

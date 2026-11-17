@@ -37,6 +37,7 @@ frontend/
   js/voice.js     Hands-free voice control (TRI-18): opt-in, capability-gated speech recognition
   js/drills.js    The 4 drills + workout math (copy/data from Figma + TT3database/drill_catalog.sql)
   js/diagram.js   Inline-SVG rink movement diagrams, one motion path per drill
+  js/prefs.js     Guest preferences & profile state (TRI-24): environment, skill/goal, accessibility toggles, optional location opt-in; localStorage-persisted
 ```
 
 ## Guided session (TRI-12)
@@ -132,10 +133,39 @@ jump to the Settings section).
   active-nav orange bar/underline, sample-data pill).
 - Honours `prefers-reduced-motion`.
 
+## Settings, profile & optional setup (TRI-24)
+
+**Settings live inside Profile** (per the final Figma). Every control is
+**functional** — nothing is a decorative placeholder:
+
+- **Training environment** (Indoor / Outdoor), **skill level**, and **primary
+  goal** — persisted preferences; primary goal drives the Progress
+  recommendations in a later ticket.
+- **Accessibility:** *Large workout text* scales the rem base app-wide (session
+  timers included); *Reduced motion* turns off diagram/interface animation. Both
+  apply instantly as classes on `<html>` and persist.
+- **Workout cues:** the *Audio prompts* toggle shares one source of truth with
+  the guided session (`js/feedback.js`), so it never diverges. Training mode is
+  shown honestly as **Timer-only** — camera tracking is labeled as a later
+  update, not a flip-on fake.
+- **Optional location** for outdoor weather tips is **off by default** and
+  nothing gates training on it, so **declining never blocks indoor training**.
+
+The **optional setup flow** (`#/setup`) writes the same preferences in a short,
+skippable 1-2-3 (Environment → Profile → Mode); the outdoor location opt-in only
+appears when Outdoor is chosen. Every state and preference is conveyed with
+**icon + text**, never colour alone.
+
+Full scope decisions: [`docs/settings-and-profile.md`](../docs/settings-and-profile.md).
+
 ## Guest state
 
-The app starts as **Guest** (no account needed to browse). State lives in
-`state.user` in `js/app.js` — later tickets flip it to a real account.
+The app runs as a **Guest** (no account needed to browse or train). Guest data —
+the custom workout (`js/workout.js`), preferences (`js/prefs.js`), and audio
+choice (`js/feedback.js`) — persists to `localStorage` on the device. Profile
+states this limit plainly: there is **no sign-in button** because account
+sign-in / cross-device sync is a later ticket, so nothing pretends to be an
+account yet.
 
 ## Theme
 
