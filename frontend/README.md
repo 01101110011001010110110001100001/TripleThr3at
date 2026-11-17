@@ -34,6 +34,7 @@ frontend/
   js/session.js   Guided-session state machine: pause-aware timers, phase transitions, finish-early, summary
   js/sessionviews.js  Runtime phase views (ready / countdown / active / rest / summary)
   js/feedback.js  Live technique feedback (TRI-17): cue vocabulary + Web Speech audio layer
+  js/voice.js     Hands-free voice control (TRI-18): opt-in, capability-gated speech recognition
   js/drills.js    The 4 drills + workout math (copy/data from Figma + TT3database/drill_catalog.sql)
   js/diagram.js   Inline-SVG rink movement diagrams, one motion path per drill
 ```
@@ -71,6 +72,19 @@ panel with no view changes. Prompts are **rate-limited**, every cue uses an
 **icon + worded label (never colour alone)**, **audio can be muted** (persists in
 `localStorage`), and **pausing silences prompts**. Full notes:
 [`docs/live-feedback.md`](../docs/live-feedback.md).
+
+## Hands-free controls (TRI-18)
+
+**Touch is the always-on baseline** — every control is a large (≥64px),
+glove-friendly target, and destructive actions (End Workout) confirm first. On
+top of that, an **optional voice** layer handles the core transport commands
+(*start · pause · resume · skip · end*) via the browser's speech-recognition
+API. It is **opt-in** (off by default, not persisted), exposes only the
+supported commands, and is built to survive mishears: a tiny whole-word grammar,
+"End" routed to the confirmation dialog, debouncing, and phase guards. Browsers
+without recognition support (e.g. Firefox) simply don't show it — touch still
+works. Scope decision and false-trigger handling:
+[`docs/hands-free-controls.md`](../docs/hands-free-controls.md).
 
 ## Workout builder (TRI-11)
 

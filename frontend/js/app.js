@@ -6,8 +6,14 @@
 // (add / remove / reorder / review) driven by data-action attributes.
 
 import { renderView } from "./views.js";
-import { renderCoach, coachAnnouncement } from "./sessionviews.js";
+import { renderCoach, coachAnnouncement, renderVoiceInner } from "./sessionviews.js";
 import { formatDuration } from "./drills.js";
+import {
+  initVoice,
+  toggleVoice,
+  disableVoice,
+  isVoiceEnabled,
+} from "./voice.js";
 import {
   subscribe,
   addToCustom,
@@ -88,8 +94,11 @@ function router() {
   }
 
   const { route, param, anchor } = parseHash();
-  // Leaving the guided session tears down its timers.
-  if (route !== "session") resetSession();
+  // Leaving the guided session tears down its timers and stops voice listening.
+  if (route !== "session") {
+    resetSession();
+    if (isVoiceEnabled()) disableVoice();
+  }
   render(route, param);
   closeDrawer({ restoreFocus: false });
 
@@ -156,7 +165,51 @@ subscribeSession((reason) => {
     updateTimerDisplays();
     updateCoachDisplay();
   } else rerenderInPlace();
+  // Voice listening is scoped to an in-progress session: stop it once the
+  // workout ends so the mic isn't left open on the summary screen.
+  if (getSessionState().phase === "summary" && isVoiceEnabled()) disableVoice();
 });
+
+// --- Hands-free voice control (TRI-18) -----------------------------------
+
+// Swap the voice panel(s) in place on a recognition status change, so toggling
+// / listening / "heard" updates never steal focus or reset scroll.
+function updateVoiceDisplay() {
+  if (parseHash().route !== "session") return;
+  viewEl
+    .querySelectorAll('[data-bind="voice"]')
+    .forEach((el) => (el.innerHTML = renderVoiceInner()));
+}
+
+// Map a recognised command to the matching touch control. Every command runs
+// through the same session functions as touch, so their phase guards apply and
+// an out-of-context command is simply a no-op. "end" opens the confirmation
+// dialog rather than ending, so a mishear can never end the session.
+function handleVoiceCommand(cmd) {
+  const st = getSessionState();
+  switch (cmd) {
+    case "start":
+      if (st.phase === "ready") startCountdown();
+      break;
+    case "pause":
+      if (!st.paused && !st.confirmOpen && ["countdown", "active", "rest"].includes(st.phase))
+        togglePause();
+      break;
+    case "resume":
+      if (st.paused && !st.confirmOpen) togglePause();
+      break;
+    case "skip":
+      if (st.phase === "rest" && !st.paused) skipRest();
+      break;
+    case "end":
+      if (st.activeRun && !st.confirmOpen) openEndConfirm();
+      break;
+    default:
+      break;
+  }
+}
+
+initVoice({ onCommand: handleVoiceCommand, onStatus: updateVoiceDisplay });
 
 // --- Dropdown (Add a drill search) ---------------------------------------
 
@@ -310,6 +363,10 @@ viewEl.addEventListener("click", (e) => {
       break;
     case "toggle-audio":
       toggleAudioPrompts();
+      break;
+    case "toggle-voice":
+      toggleVoice();
+      updateVoiceDisplay();
       break;
 
     case "close-dropdown":
