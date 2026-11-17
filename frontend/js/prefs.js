@@ -40,6 +40,15 @@ export const SKILL_LABELS = {
   advanced: "Advanced",
 };
 
+// Map a stored goal value to the drill `focus` string used in the catalog,
+// so recommendations can line a user's goal up with real drills.
+export const GOAL_TO_FOCUS = {
+  control: "Puck control",
+  speed: "Speed",
+  coordination: "Coordination",
+  awareness: "Awareness",
+};
+
 const DEFAULTS = {
   displayName: "", // optional guest display name
   environment: "indoor",

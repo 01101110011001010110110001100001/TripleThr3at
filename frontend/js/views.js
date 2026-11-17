@@ -30,10 +30,12 @@ import {
   getPrefs,
   GOALS,
   GOAL_LABELS,
+  GOAL_TO_FOCUS,
   SKILL_LEVELS,
   SKILL_LABELS,
 } from "./prefs.js";
 import { audioEnabled, speechSupported } from "./feedback.js";
+import { getProgress, recommend, FOCUSES } from "./history.js";
 
 // Escape untrusted text (e.g. the guest-chosen display name) before it is
 // interpolated into markup, for both element content and attribute values.
@@ -471,29 +473,177 @@ function review() {
 
 // --- Progress ------------------------------------------------------------
 
-function progress() {
+// Short date like "Mon, Nov 17".
+function formatDate(ts) {
+  try {
+    return new Date(ts).toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+
+// Focus-balance bars from real completed-drill counts (icon + text + count,
+// never colour alone).
+function focusBars(byFocus) {
+  const max = Math.max(1, ...FOCUSES.map((f) => byFocus[f] || 0));
+  return FOCUSES.map((f) => {
+    const n = byFocus[f] || 0;
+    const pct = Math.round((n / max) * 100);
+    return `
+      <li class="focus-bar">
+        <span class="focus-bar__label">${f}</span>
+        <span class="focus-bar__track" aria-hidden="true"><span class="focus-bar__fill" style="width:${pct}%"></span></span>
+        <span class="focus-bar__count">${n} drill${n === 1 ? "" : "s"}</span>
+      </li>`;
+  }).join("");
+}
+
+// A single, evidence-citing recommendation.
+function recCard(r) {
   return `
-    <section class="view" aria-labelledby="progress-title">
+    <li class="rec">
+      <div class="rec__body">
+        <b>${r.title}</b>
+        <p>${r.text}</p>
+        <p class="rec__evidence"><span class="coach-glyph" aria-hidden="true">${icon.info}</span><span>Because: ${r.evidence}</span></p>
+      </div>
+      ${
+        r.drill
+          ? `<button type="button" class="btn btn--secondary btn--sm" data-action="open-drill" data-slug="${r.drill.slug}">View ${r.drill.name} <span aria-hidden="true">→</span></button>`
+          : `<a class="btn btn--secondary btn--sm" href="#/training">Build a workout <span aria-hidden="true">→</span></a>`
+      }
+    </li>`;
+}
+
+// Trend line vs the previous week — distinguishes "no prior data" from "zero".
+function weekTrend(cur, prev) {
+  if (prev.count === 0) {
+    return cur.count === 0
+      ? "No sessions logged last week either."
+      : "No sessions last week to compare against yet.";
+  }
+  const diff = cur.count - prev.count;
+  if (diff === 0) return `Same as last week (${prev.count}).`;
+  return `${diff > 0 ? "▲" : "▼"} ${Math.abs(diff)} vs last week (${prev.count}).`;
+}
+
+function progressEmpty() {
+  return `
+    <section class="view view--progress" aria-labelledby="progress-title">
       <p class="eyebrow">Progress</p>
-      <h1 id="progress-title">See what is next</h1>
-      <p class="lead">Personal history and saved workouts need an account.</p>
+      <h1 id="progress-title">Your <em>progress.</em></h1>
+      <p class="lead">Your saved workouts and recommendations appear here.</p>
 
       <div class="panel">
-        <p class="section-label">GUEST PREVIEW</p>
-        <p>${pill("info", "Browsing as Guest")}</p>
-        <p class="muted">This guest preview uses demonstration data, not your activity. Create an account and complete workouts to receive suggestions based on your own progress.</p>
+        <p class="section-label">GET STARTED</p>
+        <h2>No saved workouts yet</h2>
+        <p class="muted">Finish a guided session and it saves <b>on this device</b> — elapsed active time, which drills you completed, and your focus balance. Recommendations then come from your own history.</p>
+        <p class="note"><span>${icon.info} Repetition counts aren’t measured in timer-only mode, so they won’t appear here — they’re not recorded as zero.</span></p>
         <div class="cta-row">
-          <a class="btn btn--primary" href="#/profile">Create Account</a>
-          <a class="btn btn--secondary" href="#/progress">View Sample Progress</a>
+          <a class="btn btn--primary" href="#/training">Build a workout</a>
         </div>
       </div>
 
-      <div class="stat-row">
-        <div class="stat"><small>SAMPLE MINUTES</small><b>49:30</b></div>
-        <div class="stat"><small>SAMPLE REPS</small><b>224</b></div>
-        <div class="stat"><small>SAMPLE TREND</small><b>+12%</b></div>
+      <section class="panel" aria-label="Example of what Progress will show">
+        <p class="section-label">EXAMPLE</p>
+        <p>${pill("sample", "Example — not your data")} A preview of the focus balance you’ll see once you’ve trained.</p>
+        <ul class="focus-list" aria-hidden="true">
+          ${focusBars({ "Puck control": 4, Speed: 2, Coordination: 3, Awareness: 1 })}
+        </ul>
+      </section>
+    </section>`;
+}
+
+function progress() {
+  const prog = getProgress();
+  if (!prog.all.length) return progressEmpty();
+
+  const p = getPrefs();
+  const recs = recommend({ goalFocus: GOAL_TO_FOCUS[p.primaryGoal] });
+  const L = prog.latest;
+  const w = prog.week;
+  const m = prog.month;
+  const at = prog.allTime;
+
+  const latestStatus = L.endedEarly
+    ? (L.partial ? "Ended early · 1 drill partial" : "Ended early")
+    : "Full workout complete";
+
+  const recList =
+    recs.length > 0
+      ? `<ul class="rec-list">${recs.map(recCard).join("")}</ul>`
+      : `<p class="muted">Keep training — balanced, varied sessions mean no single suggestion stands out right now.</p>`;
+
+  return `
+    <section class="view view--progress" aria-labelledby="progress-title">
+      <p class="eyebrow">Progress</p>
+      <h1 id="progress-title">Your <em>progress.</em></h1>
+      <p class="lead">Built from your saved guided sessions.${prog.streak > 1 ? ` <b>${prog.streak}-day streak.</b>` : ""}</p>
+      <p>${pill("info", "Saved on this device")} Guest progress lives in this browser until accounts ship.</p>
+
+      <section class="panel" aria-labelledby="latest-title">
+        <p class="section-label">LATEST WORKOUT · ${formatDate(L.ts)}</p>
+        <h2 id="latest-title">${latestStatus}</h2>
+        <div class="summary-metrics">
+          <div class="metric">
+            <small>DRILLS COMPLETED</small>
+            <b>${L.completedCount} of ${L.plannedCount}</b>
+            <span>${L.source === "custom" ? "Custom workout" : "Preset workout"}</span>
+          </div>
+          <div class="metric">
+            <small>ACTIVE TIME</small>
+            <b>${formatDuration(L.activeSeconds)}</b>
+            <span>${formatDuration(L.restSeconds)} rest</span>
+          </div>
+          <div class="metric">
+            <small>REPETITIONS</small>
+            <b>Not measured</b>
+            <span>Timer-only mode</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="progress-cols">
+        <section class="panel" aria-labelledby="week-title">
+          <p class="section-label">THIS WEEK</p>
+          <h3 id="week-title">${w.current.count} session${w.current.count === 1 ? "" : "s"}</h3>
+          <ul class="summary-breakdown">
+            <li><span>Active time</span><b>${formatDuration(w.current.activeSeconds)}</b></li>
+            <li><span>Drills completed</span><b>${w.current.drillsCompleted}</b></li>
+            <li><span>Full completions</span><b>${w.current.fullCompletions}</b></li>
+          </ul>
+          <p class="trend">${weekTrend(w.current, w.previous)}</p>
+        </section>
+
+        <section class="panel" aria-labelledby="month-title">
+          <p class="section-label">LAST 30 DAYS</p>
+          <h3 id="month-title">${m.count} session${m.count === 1 ? "" : "s"}</h3>
+          <ul class="summary-breakdown">
+            <li><span>Active time</span><b>${formatDuration(m.activeSeconds)}</b></li>
+            <li><span>Drills completed</span><b>${m.drillsCompleted}</b></li>
+            <li><span>Saved all-time</span><b>${at.count} session${at.count === 1 ? "" : "s"}</b></li>
+          </ul>
+        </section>
       </div>
-      <p class="note"><span>${pill("sample", "Sample data")} Charts, history and the AI advisor are example previews until real saved data is available.</span></p>
+
+      <section class="panel" aria-labelledby="focus-title">
+        <p class="section-label">FOCUS BALANCE · ALL TIME</p>
+        <h3 id="focus-title">Completed drills by focus</h3>
+        <ul class="focus-list">${focusBars(at.byFocus)}</ul>
+      </section>
+
+      <section class="panel" aria-labelledby="recs-title">
+        <p class="section-label">RECOMMENDED FOR YOU</p>
+        <h3 id="recs-title">Based on your saved history</h3>
+        <p class="muted">Simple, explainable rules — each suggestion shows the activity it’s based on. No hidden AI, nothing simulated.</p>
+        ${recList}
+      </section>
+
+      <p class="note"><span>${icon.info} These are real metrics from your guided sessions in <b>timer-only mode</b>: elapsed time and drill completion. Repetition and technique measurements arrive with camera tracking in a later update.</span></p>
     </section>`;
 }
 

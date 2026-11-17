@@ -38,6 +38,7 @@ frontend/
   js/drills.js    The 4 drills + workout math (copy/data from Figma + TT3database/drill_catalog.sql)
   js/diagram.js   Inline-SVG rink movement diagrams, one motion path per drill
   js/prefs.js     Guest preferences & profile state (TRI-24): environment, skill/goal, accessibility toggles, optional location opt-in; localStorage-persisted
+  js/history.js   Saved workout history & progress metrics (TRI-23): records each finished session, aggregates week/month/streak, builds explainable recommendations
 ```
 
 ## Guided session (TRI-12)
@@ -132,6 +133,28 @@ jump to the Settings section).
 - Status is conveyed with **icon + text, never colour alone** (Guest pill,
   active-nav orange bar/underline, sample-data pill).
 - Honours `prefers-reduced-motion`.
+
+## Results, progress & recommendations (TRI-23)
+
+Progress is built from **real saved metrics**, never fabricated data. Every
+guided session that reaches its summary (complete *or* ended early) is recorded
+by `js/history.js` to `localStorage` (guest, on-device).
+
+- **Latest workout** — a post-workout summary of your most recent session.
+- **This week / Last 30 days** — session counts, active time, drills completed,
+  with an honest week-over-week trend that **distinguishes "no prior data" from
+  "zero"**.
+- **Focus balance** — completed drills per focus, as labelled bars (icon + text
+  + count, never colour alone).
+- **Recommendations** — simple, **explainable rule-based** suggestions that each
+  **cite the activity they're based on** (e.g. "you completed Puck control 4× but
+  Awareness 0× in the last 2 weeks"), linking to the drill. With **no history
+  there are no recommendations** — nothing is simulated.
+
+**Honesty:** timer-only mode can't measure repetitions, so reps are shown as
+**"Not measured"**, never as `0`. Rep/technique measurements arrive with camera
+tracking (TRI-15). Full notes:
+[`docs/progress-and-recommendations.md`](../docs/progress-and-recommendations.md).
 
 ## Settings, profile & optional setup (TRI-24)
 
