@@ -15,6 +15,13 @@ import {
   isVoiceEnabled,
 } from "./voice.js";
 import {
+  getPrefs,
+  subscribe as subscribePrefs,
+  setPref,
+  resetPrefs,
+} from "./prefs.js";
+import { toggleAudio } from "./feedback.js";
+import {
   subscribe,
   addToCustom,
   removeFromCustom,
@@ -131,6 +138,8 @@ function rerenderInPlace() {
 
 // Re-render whenever the workout state changes.
 subscribe(rerenderInPlace);
+// …and whenever a preference changes (settings / setup toggles).
+subscribePrefs(rerenderInPlace);
 
 // Session runtime: "tick" updates only the time readouts in place (so the
 // 1-second timer never steals focus or resets scroll); "phase" re-renders.
@@ -252,6 +261,14 @@ viewEl.addEventListener("focusin", (e) => {
   if (e.target.matches("[data-dropdown-input]")) openDropdown();
 });
 
+// Text preferences (e.g. the guest display name) commit on change (blur/Enter).
+viewEl.addEventListener("change", (e) => {
+  const input = e.target.closest('input[data-pref]');
+  if (!input) return;
+  pendingFocus = `#${input.id}`;
+  setPref(input.dataset.pref, input.value);
+});
+
 // --- Delegated actions ---------------------------------------------------
 
 viewEl.addEventListener("click", (e) => {
@@ -371,6 +388,42 @@ viewEl.addEventListener("click", (e) => {
 
     case "close-dropdown":
       closeDropdown();
+      break;
+
+    // --- Preferences (Profile settings + optional setup) ---
+    case "set-pref":
+      pendingFocus = `.seg-btn[data-pref="${trigger.dataset.pref}"][data-value="${trigger.dataset.value}"]`;
+      setPref(trigger.dataset.pref, trigger.dataset.value);
+      break;
+
+    case "toggle-pref": {
+      const pref = trigger.dataset.pref;
+      pendingFocus = `.switch[data-pref="${pref}"]`;
+      setPref(pref, !getPrefs()[pref]);
+      break;
+    }
+
+    case "toggle-audio-pref":
+      // Audio lives in feedback.js (shared with the session), so toggle it there
+      // and re-render in place — it doesn't flow through the prefs subscription.
+      toggleAudio();
+      pendingFocus = '.switch[data-action="toggle-audio-pref"]';
+      rerenderInPlace();
+      break;
+
+    case "reset-prefs":
+      pendingFocus = '[data-action="reset-prefs"]';
+      resetPrefs();
+      break;
+
+    case "setup-continue":
+      setPref("setupComplete", true);
+      location.hash = "#/review";
+      break;
+
+    case "setup-done":
+      // The <a> handles navigation to #/training; just record completion.
+      setPref("setupComplete", true);
       break;
 
     case "toggle-animate": {

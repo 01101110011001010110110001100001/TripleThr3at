@@ -26,6 +26,48 @@ import {
   isInCustom,
 } from "./workout.js";
 import { renderSession } from "./sessionviews.js";
+import {
+  getPrefs,
+  GOALS,
+  GOAL_LABELS,
+  SKILL_LEVELS,
+  SKILL_LABELS,
+} from "./prefs.js";
+import { audioEnabled, speechSupported } from "./feedback.js";
+
+// Escape untrusted text (e.g. the guest-chosen display name) before it is
+// interpolated into markup, for both element content and attribute values.
+function esc(s) {
+  return String(s == null ? "" : s).replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+  );
+}
+
+// Segmented control — a group of mutually-exclusive preference buttons. The
+// chosen value shows an icon tick + "is-on" class, so it reads without colour.
+function segmented(pref, value, opts, label) {
+  const buttons = opts
+    .map(
+      ([v, l]) => `
+      <button type="button" class="seg-btn ${v === value ? "is-on" : ""}" data-action="set-pref" data-pref="${pref}" data-value="${v}" aria-pressed="${v === value}">
+        <span class="seg-tick" aria-hidden="true">${v === value ? "✓ " : ""}</span>${l}
+      </button>`
+    )
+    .join("");
+  return `<div class="seg" role="group" aria-label="${esc(label)}">${buttons}</div>`;
+}
+
+// On/off switch. The visible word ("On"/"Off") carries the state so meaning is
+// never colour-only; aria-pressed exposes it to assistive tech.
+function switchCtrl(pref, on, label, { action = "toggle-pref" } = {}) {
+  const prefAttr = pref ? `data-pref="${pref}"` : "";
+  return `
+    <button type="button" class="switch ${on ? "is-on" : ""}" data-action="${action}" ${prefAttr} aria-pressed="${on}" aria-label="${esc(label)}">
+      <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+      <span class="switch__state">${on ? "On" : "Off"}</span>
+    </button>`;
+}
 
 // Inline SVG icons (aria-hidden; always paired with visible text).
 const icon = {
@@ -76,7 +118,7 @@ function home() {
       <div class="cta-row">
         <a class="btn btn--primary" href="#/training">Explore Training</a>
         <a class="btn btn--secondary" href="#/setup">Set Up Now</a>
-        <a class="btn btn--quiet" href="#/profile">Sign In</a>
+        <a class="btn btn--quiet" href="#/profile">Profile &amp; Settings</a>
       </div>
 
       <p class="account-note">
@@ -458,28 +500,102 @@ function progress() {
 // --- Profile -------------------------------------------------------------
 
 function profile() {
+  const p = getPrefs();
+  const name = p.displayName.trim();
+  const audioSupported = speechSupported();
+  const audioOn = audioEnabled();
+
   return `
-    <section class="view" aria-labelledby="profile-title">
+    <section class="view view--profile" aria-labelledby="profile-title">
       <p class="eyebrow">Profile</p>
-      <h1 id="profile-title">Guest &amp; Settings</h1>
-      <p>${pill("info", "Guest")} Browse drills, build workouts, and adjust settings without an account.</p>
-      <div class="cta-row">
-        <a class="btn btn--primary" href="#/profile">Sign In</a>
-        <a class="btn btn--secondary" href="#/profile">Create Account</a>
-      </div>
+      <h1 id="profile-title">Your <em>profile.</em></h1>
+      <p class="lead">Set training preferences and accessibility options. Everything here works without an account.</p>
+
+      <section class="panel profile-identity" aria-labelledby="identity-title">
+        <p class="section-label">ACCOUNT</p>
+        <h2 id="identity-title">${name ? `Training as ${esc(name)}` : "You’re training as a Guest"}</h2>
+        <p>${pill("info", name ? `Guest · ${esc(name)}` : "Guest")} Browse drills, build workouts, train, and adjust settings with no account.</p>
+
+        <div class="field">
+          <label for="display-name">Display name <span class="field-opt">(optional)</span></label>
+          <input id="display-name" type="text" maxlength="40" value="${esc(name)}" placeholder="Add a name for this device" autocomplete="name" data-pref="displayName" />
+          <p class="field-hint">Shown on your profile. Stored only on this device.</p>
+        </div>
+
+        <div class="limits">
+          <p class="limits__title">${icon.info} Guest vs. account</p>
+          <ul>
+            <li><b>As a guest (now):</b> workouts, preferences, and saved progress are kept <b>on this device</b> in your browser.</li>
+            <li><b>With an account (a later update):</b> your data will sync and back up across devices.</li>
+          </ul>
+          <p class="muted">Clearing your browser data removes guest progress. Account sign-in isn’t built yet, so there’s no sign-in button to click.</p>
+        </div>
+      </section>
 
       <section class="panel" id="settings" aria-labelledby="settings-title">
         <p class="section-label">SETTINGS</p>
         <h2 id="settings-title">Preferences</h2>
-        <p class="note"><span>${icon.info} Settings live inside Profile. The controls below are placeholders for a later update.</span></p>
+        <p class="note"><span>${icon.info} Settings live inside Profile (per the final Figma). Changes save instantly on this device.</span></p>
+
         <ul class="setting-list">
-          <li><span>Training environment</span><span class="muted">Indoor or Outdoor</span></li>
-          <li><span>Skill level &amp; primary goal</span><span class="muted">Beginner / Intermediate / Advanced</span></li>
-          <li><span>Large workout text</span><span class="muted">Accessibility</span></li>
-          <li><span>Reduced motion</span><span class="muted">Accessibility</span></li>
-          <li><span>Audio &amp; visual cues</span><span class="muted">Workout</span></li>
-          <li><span>Camera-supported option</span><span class="muted">Simulated</span></li>
+          <li class="setting">
+            <div class="setting__label"><b>Training environment</b><small>Tailors drill guidance and optional weather tips.</small></div>
+            ${segmented("environment", p.environment, [["indoor", "Indoor"], ["outdoor", "Outdoor"]], "Training environment")}
+          </li>
+          <li class="setting">
+            <div class="setting__label"><b>Skill level</b><small>Frames how recommendations are worded.</small></div>
+            ${segmented("skillLevel", p.skillLevel, SKILL_LEVELS.map((s) => [s, SKILL_LABELS[s]]), "Skill level")}
+          </li>
+          <li class="setting">
+            <div class="setting__label"><b>Primary goal</b><small>Drives your drill recommendations on Progress.</small></div>
+            ${segmented("primaryGoal", p.primaryGoal, GOALS.map((g) => [g, GOAL_LABELS[g]]), "Primary goal")}
+          </li>
         </ul>
+
+        <p class="section-label settings-group">ACCESSIBILITY</p>
+        <ul class="setting-list">
+          <li class="setting">
+            <div class="setting__label"><b>Large workout text</b><small>Bigger timers and workout text, easier to read at a distance.</small></div>
+            ${switchCtrl("largeText", p.largeText, "Large workout text")}
+          </li>
+          <li class="setting">
+            <div class="setting__label"><b>Reduced motion</b><small>Turns off diagram and interface animations.</small></div>
+            ${switchCtrl("reducedMotion", p.reducedMotion, "Reduced motion")}
+          </li>
+        </ul>
+
+        <p class="section-label settings-group">WORKOUT CUES</p>
+        <ul class="setting-list">
+          <li class="setting">
+            <div class="setting__label"><b>Audio prompts</b><small>Spoken heads-up and “ten seconds left” cues during a session. Visual cues always show.</small></div>
+            ${
+              audioSupported
+                ? switchCtrl(null, audioOn, "Audio prompts", { action: "toggle-audio-pref" })
+                : `<span class="setting-off">${icon.info}<span>Not available in this browser</span></span>`
+            }
+          </li>
+          <li class="setting">
+            <div class="setting__label"><b>Training mode</b><small>The working mode today.</small></div>
+            <span class="setting-static"><b>Timer-only</b><small>Camera-supported tracking arrives in a later update.</small></span>
+          </li>
+        </ul>
+
+        <p class="section-label settings-group">OPTIONAL</p>
+        <ul class="setting-list">
+          <li class="setting">
+            <div class="setting__label"><b>Location for outdoor weather tips</b><small>Optional. Used only for outdoor sessions. Declining never blocks indoor training.</small></div>
+            ${switchCtrl("locationWeather", p.locationWeather, "Location for outdoor weather tips")}
+          </li>
+        </ul>
+        ${
+          p.locationWeather
+            ? `<p class="note"><span>${icon.info} Location sharing is on. Outdoor weather tips arrive with outdoor mode in a later update; nothing is sent anywhere yet.</span></p>`
+            : ""
+        }
+
+        <div class="settings-foot">
+          <button type="button" class="btn btn--secondary btn--sm" data-action="reset-prefs">Reset to defaults</button>
+        </div>
       </section>
     </section>`;
 }
@@ -502,27 +618,59 @@ function setup() {
                .map((name) => `<li><span class="order-number">${getDrillIndex(list, name)}</span>${name}</li>`)
                .join("")}
            </ol>
-           <p class="note"><span>${icon.info} Mode selection and the guided timer session are built in the next update.</span></p>
+           <p class="note"><span>${icon.info} This order feeds the guided timer session. Choose a mode from the workout review.</span></p>
          </div>`
       : `<p class="note"><span>${icon.info} Build or pick a workout first, then choose a training mode here.</span></p>`;
 
+  const p = getPrefs();
+  const audioSupported = speechSupported();
+
   return `
     <section class="view view--setup" aria-labelledby="setup-title">
-      <p class="eyebrow">Setup <span aria-hidden="true">•</span> Training Mode</p>
-      <h1 id="setup-title">Set up your training</h1>
-      <p class="lead">A quick setup tailors drills to you. You can move back without losing your choices.</p>
+      <p class="eyebrow">Setup <span aria-hidden="true">•</span> Optional</p>
+      <h1 id="setup-title">Set up your <em>training.</em></h1>
+      <p class="lead">A quick, optional setup tailors drills to you. You can skip it and start training right away — indoor training never requires any of these.</p>
 
       ${queued}
 
-      <ol class="steps">
-        <li><strong>Environment</strong> — Indoor or Outdoor</li>
-        <li><strong>Profile</strong> — Training level, available space, primary goal</li>
-        <li><strong>Mode</strong> — Camera-supported option or Timer Only</li>
-      </ol>
+      <section class="panel setup-step" aria-labelledby="setup-env-title">
+        <p class="section-label">1 · ENVIRONMENT</p>
+        <h2 id="setup-env-title">Where will you train?</h2>
+        <p class="muted">Indoor works with no extra setup. Outdoor can add weather tips if you choose to share your location.</p>
+        ${segmented("environment", p.environment, [["indoor", "Indoor"], ["outdoor", "Outdoor"]], "Training environment")}
+        ${
+          p.environment === "outdoor"
+            ? `<div class="setting setting--inline">
+                 <div class="setting__label"><b>Location for weather tips</b><small>Optional. Declining never blocks training.</small></div>
+                 ${switchCtrl("locationWeather", p.locationWeather, "Location for outdoor weather tips")}
+               </div>`
+            : ""
+        }
+      </section>
+
+      <section class="panel setup-step" aria-labelledby="setup-profile-title">
+        <p class="section-label">2 · PROFILE</p>
+        <h2 id="setup-profile-title">Training level &amp; goal</h2>
+        <div class="setup-field"><span>Skill level</span>${segmented("skillLevel", p.skillLevel, SKILL_LEVELS.map((s) => [s, SKILL_LABELS[s]]), "Skill level")}</div>
+        <div class="setup-field"><span>Primary goal</span>${segmented("primaryGoal", p.primaryGoal, GOALS.map((g) => [g, GOAL_LABELS[g]]), "Primary goal")}</div>
+      </section>
+
+      <section class="panel setup-step" aria-labelledby="setup-mode-title">
+        <p class="section-label">3 · MODE</p>
+        <h2 id="setup-mode-title">Training mode</h2>
+        <p><b>Timer-only</b> is available now, with large glove-friendly touch controls${audioSupported ? " and optional spoken prompts" : ""}.</p>
+        <p class="muted"><span>${icon.info}</span> Camera-supported tracking arrives in a later update. Nothing here simulates camera measurements.</p>
+      </section>
+
       <div class="cta-row">
-        <a class="btn btn--secondary" href="#/training">Back to Workout Builder</a>
-        <a class="btn btn--primary" href="#/home">Back to Home</a>
+        ${
+          list.length > 0
+            ? `<button type="button" class="btn btn--primary" data-action="setup-continue">Save &amp; review workout <span aria-hidden="true">→</span></button>`
+            : `<a class="btn btn--primary" href="#/training" data-action="setup-done">Save &amp; build a workout <span aria-hidden="true">→</span></a>`
+        }
+        <a class="btn btn--secondary" href="#/training">Skip — start without setup</a>
       </div>
+      <p class="note"><span>${pill("info", p.setupComplete ? "Setup saved" : "Setup optional")} Your choices save automatically on this device. Change them anytime in Profile → Settings.</span></p>
     </section>`;
 }
 
